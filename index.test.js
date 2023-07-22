@@ -27,7 +27,8 @@ describe('Render task definition', () => {
             .mockReturnValueOnce('task-definition.json') // task-definition
             .mockReturnValueOnce('web')                  // container-name
             .mockReturnValueOnce('nginx:latest')         // image
-            .mockReturnValueOnce('FOO=bar\nHELLO=world'); // environment-variables
+            .mockReturnValueOnce('FOO=bar\nHELLO=world') // environment-variables
+            .mockReturnValueOnce(undefined)
 
         process.env = Object.assign(process.env, { GITHUB_WORKSPACE: __dirname });
         process.env = Object.assign(process.env, { RUNNER_TEMP: '/home/runner/work/_temp' });
@@ -216,3 +217,92 @@ describe('Render task definition', () => {
         expect(core.setFailed).toBeCalledWith('Invalid task definition: Could not find container definition with matching name');
     });
 });
+
+
+describe("Render task definition, setting the family value", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        core.getInput = jest
+            .fn()
+            .mockReturnValueOnce('task-definition.json') // task-definition
+            .mockReturnValueOnce('web')                  // container-name
+            .mockReturnValueOnce('nginx:latest')         // image
+            .mockReturnValueOnce('FOO=bar\nHELLO=world') // environment-variables
+            .mockReturnValueOnce('new-task-def-family') // family
+
+        process.env = Object.assign(process.env, { GITHUB_WORKSPACE: __dirname });
+        process.env = Object.assign(process.env, { RUNNER_TEMP: '/home/runner/work/_temp' });
+
+        tmp.fileSync.mockReturnValue({
+            name: 'new-task-def-file-name'
+        });
+
+        fs.existsSync.mockReturnValue(true);
+
+        jest.mock('./task-definition.json', () => ({
+            family: 'task-def-family',
+            containerDefinitions: [
+                {
+                    name: "web",
+                    image: "some-other-image",
+                    environment: [
+                        {
+                            name: "FOO",
+                            value: "not bar"
+                        },
+                        {
+                            name: "DONT-TOUCH",
+                            value: "me"
+                        }
+                    ]
+                },
+                {
+                    name: "sidecar",
+                    image: "hello"
+                }
+            ]
+        }), { virtual: true });
+    });
+
+    test('renders the task definition and creates a new task def file', async () => {
+        await run();
+        expect(tmp.fileSync).toHaveBeenNthCalledWith(1, {
+            tmpdir: '/home/runner/work/_temp',
+            prefix: 'task-definition-',
+            postfix: '.json',
+            keep: true,
+            discardDescriptor: true
+          });
+        expect(fs.writeFileSync).toHaveBeenNthCalledWith(1, 'new-task-def-file-name',
+            JSON.stringify({
+                family: 'new-task-def-family',
+                containerDefinitions: [
+                    {
+                        name: "web",
+                        image: "nginx:latest",
+                        environment: [
+                            {
+                                name: "FOO",
+                                value: "bar"
+                            },
+                            {
+                                name: "DONT-TOUCH",
+                                value: "me"
+                            },
+                            {
+                                name: "HELLO",
+                                value: "world"
+                            }
+                        ]
+                    },
+                    {
+                        name: "sidecar",
+                        image: "hello"
+                    }
+                ]
+            }, null, 2)
+        );
+        expect(core.setOutput).toHaveBeenNthCalledWith(1, 'task-definition', 'new-task-def-file-name');
+    });
+})

@@ -1396,6 +1396,7 @@ async function run() {
     const imageURI = core.getInput('image', { required: true });
 
     const environmentVariables = core.getInput('environment-variables', { required: false });
+    const family = core.getInput('family', { required: false });
 
     // Parse the task definition
     const taskDefPath = path.isAbsolute(taskDefinitionFile) ?
@@ -1417,6 +1418,10 @@ async function run() {
       throw new Error('Invalid task definition: Could not find container definition with matching name');
     }
     containerDef.image = imageURI;
+
+    if (family) {
+      taskDefContents.family = family
+    }
 
     if (environmentVariables) {
 
