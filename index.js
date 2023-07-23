@@ -49,8 +49,13 @@ async function run() {
       environmentVariables.split('\n').forEach(function (line) {
         // Trim whitespace
         const trimmedLine = line.trim();
+
         // Skip if empty
         if (trimmedLine.length === 0) { return; }
+
+        // Skip comments
+        if (trimmedLine.startsWith('#')) { return; }
+
         // Split on =
         const separatorIdx = trimmedLine.indexOf("=");
         // If there's nowhere to split

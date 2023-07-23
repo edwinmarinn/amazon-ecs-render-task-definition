@@ -4,7 +4,7 @@
   "description": "Render Amazon ECS task definition file",
   "main": "index.js",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "scripts": {
     "lint": "eslint **.js",
